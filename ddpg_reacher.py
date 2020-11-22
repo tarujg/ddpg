@@ -151,8 +151,7 @@ class DDPG():
                 validate_reward, steps = self.evaluate()
                 validation_reward.append(validate_reward)
                 validation_steps.append(steps)
-                if step % (100*self.validate_steps) == 0:
-                    print("[Evaluate] Steps: {:05d}, Episode Reward:{:04f}".format(steps, validate_reward))
+                print("[Eval {:06d}/{:06d}] Steps: {:06d}, Episode Reward:{:04f}".format(step, int(num_steps), steps, validate_reward))
 
             # update 
             step += 1
@@ -160,9 +159,8 @@ class DDPG():
             episode_reward += reward
             state = deepcopy(state_next)
 
-            if done: # end of episode
-                print("[Train] #{:05d} - Steps: {:05d}, Episode Reward:{:04f} ".format(episode, step, episode_reward))
-                # reset
+            if done: # reset at the end of episode
+                #print("[Train {:06d}/{:06d}] - Episode Reward:{:04f} ".format(step, num_steps, step, episode_reward))
                 episode_steps, episode_reward,state  = 0, 0., None
                 episode += 1
 
@@ -171,51 +169,13 @@ class DDPG():
     def evaluate(self):
         """
         Evaluate the policy trained so far in an evaluation environment
-        """
-        
+        """        
         state,done,total_reward,steps = self.eval_env.reset(),False, 0.,0
-        
+
         while not done:
             action = self.select_action(state, True)
             state_next, reward, done, _ = self.eval_env.step(action)
-            #env.render()
-            #time.sleep(0.1)
             total_reward+= reward
             steps+=1
             state = state_next
         return total_reward/steps, steps
-
-if __name__ == "__main__":
-
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    # Define the environment
-    env = gym.make("modified_gym_env:ReacherPyBulletEnv-v1", rand_init=False)
-
-    ddpg = DDPG(env, action_dim=2, state_dim=8, device=device, critic_lr=1e-3, actor_lr=1e-4, gamma=0.99, batch_size=100)
-    
-    # Train the policy
-    value_losses, policy_losses, validation_reward, validation_steps = ddpg.train(2e5)
-
-    plotting(validation_reward, "Average Rewards for Evaluation",
-                                "eval_return.{}.png".format(SEED),"Iterations", "Reward")
-    plotting(validation_steps, "Steps to Completion",
-                                "eval_steps_{}.png".format(SEED),"Iterations", "Steps to Completion")
-
-    torch.save(ddpg.actor.model,"./Actor.pth")
-    torch.save(ddpg.critic.model,"./Critic.pth")
-
-    np.save("validation_reward_{}.npy".format(SEED), validation_reward)
-    np.save("validation_steps_{}.npy".format(SEED), validation_steps)
-    
-    # Evaluate the final policy
-    state, step, done = env.reset(), 0, False
-    env.render()
-    while not done:
-        state = torch.from_numpy(state).float().unsqueeze(0).to(device)
-        action = ddpg.actor(state).detach().squeeze().numpy()
-        next_state, reward, done, _ = env.step(action)
-        env.render()
-        time.sleep(0.1)
-        state = next_state
-        step+=1
-        print("Steps: {}, Action: {}, Reward: {}".format(step, action, reward))
