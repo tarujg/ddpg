@@ -147,11 +147,12 @@ class DDPG():
             policy_losses.append(policy_loss)
 
             # evaluate
-            if num_steps % self.validate_steps == 0:
+            if step % self.validate_steps == 0:
                 validate_reward, steps = self.evaluate()
                 validation_reward.append(validate_reward)
                 validation_steps.append(steps)
-                print("[Evaluate] Step_{:05d}: mean_reward:{}".format(steps, validate_reward))
+                if step % (100*self.validate_steps) == 0:
+                    print("[Evaluate] Steps: {:05d}, Episode Reward:{:04f}".format(steps, validate_reward))
 
             # update 
             step += 1
@@ -160,7 +161,7 @@ class DDPG():
             state = deepcopy(state_next)
 
             if done: # end of episode
-                print("#{}: episode_reward:{} steps:{}".format(episode,episode_reward,step))
+                print("[Train] #{:05d} - Steps: {:05d}, Episode Reward:{:04f} ".format(episode, step, episode_reward))
                 # reset
                 episode_steps, episode_reward,state  = 0, 0., None
                 episode += 1
