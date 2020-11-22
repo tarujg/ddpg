@@ -30,7 +30,7 @@ def weighSync(target, source, tau=0.001):
 
 class DDPG():
     def __init__(self, env, action_dim, state_dim, device, 
-                 critic_lr=3e-4, actor_lr=3e-4, gamma=0.99, batch_size=100, validate_steps = 100):
+                 critic_lr=3e-4, actor_lr=3e-4, gamma=0.99, batch_size=100, validate_steps = 100, max_episode_length = 150):
         """
         param: env: An gym environment
         param: action_dim: Size of action space
@@ -46,16 +46,17 @@ class DDPG():
         self.batch_size = batch_size
         self.env = env
         self.device = device
-        self.eval_env = copy.deepcopy(env)
+        self.eval_env = deepcopy(env)
         self.validate_steps = validate_steps
+        self.max_episode_length = max_episode_length
 
         # actor and actor_target where both networks have the same initial weights
-        self.actor = Actor(state_dim, action_dim).to(self.device)
-        self.actor_target = copy.deepcopy(self.actor)
+        self.actor = Actor(state_dim = state_dim, action_dim = action_dim).to(self.device)
+        self.actor_target = deepcopy(self.actor)
 
         # critic and critic_target where both networks have the same initial weights
-        self.critic = Critic(state_dim, action_dim).to(self.device)
-        self.critic_target = copy.deepcopy(self.critic)
+        self.critic = Critic(state_dim = state_dim, action_dim = action_dim).to(self.device)
+        self.critic_target = deepcopy(self.critic)
 
         # Optimizer for the actor and critic
         self.optimizer_actor = optim.Adam(self.actor.parameters(), lr=actor_lr)
@@ -107,12 +108,11 @@ class DDPG():
     def select_action(self, state, isEval):
 
         state = torch.from_numpy(state).float().unsqueeze(0).to(self.device)
-        action = self.actor(state).cpu().squeeze(0).numpy()        
+        action = self.actor(state).squeeze(0).detach()
         if isEval:
-            return action
-        # Adding uncorrelated, mean-zero Gaussian noise 
-        action += torch.normal(torch.Tensor([0, 0]).to(self.device),torch.diag(torch.Tensor([0.1, 0.1]).to(self.device)))
-        action = torch.clip(action, -1., 1.)
+            return action.cpu().numpy()
+        action += torch.normal(0, 0.1, size = action.shape).to(self.device)
+        action = torch.clamp(action, -1., 1.).cpu().numpy()
         return action
 
     def train(self, num_steps):
@@ -134,8 +134,8 @@ class DDPG():
             state_next, reward, done, _ = self.env.step(action)
             state_next = deepcopy(state_next)
 
-            #if max_episode_length and episode_steps >= max_episode_length -1:
-            #    done = True
+            if self.max_episode_length and episode_steps >= self.max_episode_length -1:
+                done = True
 
             # observe and store in replay buffer
             self.ReplayBuffer.buffer_add(Exp(state=state, action=action, reward=reward, state_next=state_next, done=done))
@@ -146,12 +146,12 @@ class DDPG():
             value_losses.append(value_loss)
             policy_losses.append(policy_loss)
 
-            # [optional] evaluate
+            # evaluate
             if num_steps % self.validate_steps == 0:
-                validate_reward, steps = self.evaluate(self)
+                validate_reward, steps = self.evaluate()
                 validation_reward.append(validate_reward)
                 validation_steps.append(steps)
-                print("[Evaluate] Step_{:07d}: mean_reward:{}".format(steps, validate_reward))
+                print("[Evaluate] Step_{:05d}: mean_reward:{}".format(steps, validate_reward))
 
             # update 
             step += 1
@@ -190,7 +190,7 @@ if __name__ == "__main__":
     # Define the environment
     env = gym.make("modified_gym_env:ReacherPyBulletEnv-v1", rand_init=False)
 
-    ddpg = DDPG(env, action_dim=8, state_dim=2, device=device, critic_lr=1e-3, actor_lr=1e-4, gamma=0.99, batch_size=100)
+    ddpg = DDPG(env, action_dim=2, state_dim=8, device=device, critic_lr=1e-3, actor_lr=1e-4, gamma=0.99, batch_size=100)
     
     # Train the policy
     value_losses, policy_losses, validation_reward, validation_steps = ddpg.train(2e5)

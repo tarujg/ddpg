@@ -38,7 +38,7 @@ class ReplayBuffer():
         A function to sample N points from the buffer
         param: N : Number of samples to obtain from the buffer
         """
-        raise random.sample(self.buffer, N)
+        return random.sample(self.buffer, N)
 
     def buffer_populate(self):
         """
@@ -71,12 +71,12 @@ class ReplayBuffer():
         batch_size = len(batch)
         state, action, reward, state_next, done = [],[],[],[],[]
         for element in batch:
-            state.append(torch.FloatTensor(getattr(element,state)))
-            action.append(torch.FloatTensor(getattr(element,action)))
-            reward.append(torch.FloatTensor(getattr(element,reward)))
-            state_next.append(torch.FloatTensor(getattr(element,state_next)))
-            done.append(torch.FloatTensor(0. if getattr(element,done) else 1.))
-
+            state.append(torch.FloatTensor(getattr(element,'state')))
+            action.append(torch.FloatTensor(getattr(element,'action')))
+            reward.append(torch.FloatTensor([getattr(element,'reward')]))
+            state_next.append(torch.FloatTensor(getattr(element,'state_next')))
+            done.append(torch.FloatTensor([0. if getattr(element,'done') else 1.]))
+        
         # Prepare and validate parameters.
         state = torch.cat(state).reshape(batch_size,-1).to(self.device)
         action = torch.cat(action).reshape(batch_size,-1).to(self.device)
