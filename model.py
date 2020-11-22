@@ -46,7 +46,7 @@ class Actor(nn.Module):
 
 
 class Critic(nn.Module):
-    def __init____init__(self, state_dim, action_dim,hidden=[400,300],init_w=3e-3):
+    def __init____init__(self, state_dim, action_dim,hidden=[400,300],init_w=3e-4):
         """
         Initialize the critic
         param: state_dim : Size of the state space

@@ -190,7 +190,7 @@ if __name__ == "__main__":
     # Define the environment
     env = gym.make("modified_gym_env:ReacherPyBulletEnv-v1", rand_init=False)
 
-    ddpg = DDPG(env, action_dim=8, state_dim=2, device=device, critic_lr=1e-3, actor_lr=1e-3, gamma=0.99, batch_size=100)
+    ddpg = DDPG(env, action_dim=8, state_dim=2, device=device, critic_lr=1e-3, actor_lr=1e-4, gamma=0.99, batch_size=100)
     
     # Train the policy
     value_losses, policy_losses, validation_reward, validation_steps = ddpg.train(2e5)
@@ -202,6 +202,9 @@ if __name__ == "__main__":
 
     torch.save(ddpg.actor.model,"./Actor.pth")
     torch.save(ddpg.critic.model,"./Critic.pth")
+
+    np.save("validation_reward_{}.npy".format(SEED), validation_reward)
+    np.save("validation_steps_{}.npy".format(SEED), validation_steps)
     
     # Evaluate the final policy
     state, step, done = env.reset(), 0, False
